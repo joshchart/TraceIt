@@ -1,6 +1,4 @@
 # Only used when running on docker locally
-version: '3.8'
-
 services:
   app:
     build:
