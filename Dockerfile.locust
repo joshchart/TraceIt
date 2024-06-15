@@ -1,10 +1,8 @@
-# Dockerfile.test
-FROM python:3.9-slim
+FROM locustio/locust:2.29.0
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV PORT 8080  # Set the default port to 8080
 
 # Set the working directory in the container
 WORKDIR /app
@@ -18,11 +16,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application code to the working directory
 COPY . /app/
 
-# Install testing dependencies
-RUN pip install pytest pytest-cov
-
-# Expose the port the app runs on (if needed for integration tests)
+# Expose the port for Locust web interface (use 8080 for Cloud Run)
 EXPOSE 8080
 
-# Command to run the tests
-CMD ["pytest", "--maxfail=1", "--disable-warnings", "-v"]
+# Command ot run on GCP (Cloud Run)
+CMD ["-f", "locustfile.py"]
+
+# Command to run on Docker locally
+# CMD ["-f", "locustfile.py", "--host=http://app:8080"]

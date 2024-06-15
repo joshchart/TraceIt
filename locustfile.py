@@ -62,11 +62,3 @@ class FastAPIUser(HttpUser):
                 print(f"Failed to get current location in get_device_info: {response.status_code} - {response.text}")
         else:
             print("No device ID available.")
-
-
-
-if __name__ == "__main__":
-    import os
-    os.system("locust -f locustfile.py")
-
-
