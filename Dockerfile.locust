@@ -17,10 +17,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . /app/
 
 # Expose the port for Locust web interface (use 8080 for Cloud Run)
-EXPOSE 8080
+EXPOSE 8089
 
-# Command ot run on GCP (Cloud Run)
-CMD ["-f", "locustfile.py"]
+# Command to run on GCP (Cloud Run)
+# CMD ["-f", "locustfile.py"]
+# CMD ["-f", "locustfile.py", "--host=https://main-app-drdetwm72a-uc.a.run.app"]
+
+# Commnd to run headless with Cloud Batch
+# CMD ["-f", "locustfile.py", "--headless", "--users", "600", "--spawn-rate", "50", "--host", "https://main-app-drdetwm72a-uc.a.run.app", "--run-time", "1m"]
+CMD ["-f", "locustfile.py", "--headless", "--users", "100", "--spawn-rate", "50", "--host", "http://app:8080", "--run-time", "1m"]
 
 # Command to run on Docker locally
 # CMD ["-f", "locustfile.py", "--host=http://app:8080"]
