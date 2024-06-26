@@ -1,0 +1,17 @@
+# Use the peterevans/vegeta image
+FROM peterevans/vegeta:latest
+
+# Install bash
+RUN apk add --no-cache bash
+
+# Set the working directory
+WORKDIR /app
+
+# Copy the local files into the container
+COPY . .
+
+# Make the script executable
+RUN chmod +x load_test.sh
+
+# Define the command to run the script
+ENTRYPOINT ["./load_test.sh"]

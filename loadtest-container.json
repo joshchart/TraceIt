@@ -1,0 +1,26 @@
+{
+    "taskGroups": [
+        {
+            "taskSpec": {
+                "runnables": [
+                    {
+                        "container": {
+                            "imageUri": "gcr.io/traceit-426022/vegeta-load-tester"
+                        }
+                    }
+                ],
+                "computeResource": {
+                    "cpuMilli": 4000,
+                    "memoryMib": 8192
+                },
+                "maxRetryCount": 1,
+                "maxRunDuration": "300s"
+            },
+            "taskCount": 1,
+            "parallelism": 1
+        }
+    ],
+    "logsPolicy": {
+        "destination": "CLOUD_LOGGING"
+    }
+}
