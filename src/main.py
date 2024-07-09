@@ -14,7 +14,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 dotenv.load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-app = FastAPI()
+app = FastAPI(title="TraceIt")
 
 
 async def init_models():
