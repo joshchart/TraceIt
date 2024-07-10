@@ -4,7 +4,6 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.app.dependencies import valid_device_id
 from src.app.schemas import DeviceCreate, DeviceData
 from src.app.schemas import Location as LocationModel
 from src.app.schemas import Location as LocationSchema
