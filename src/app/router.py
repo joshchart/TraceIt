@@ -67,8 +67,8 @@ async def remove_device_endpoint(
 
 @router.post("/devices/{device_id}/locations", status_code=200)
 async def update_device_location_endpoint(
+    device_id: UUID,
     location: LocationModel,
-    device_id: UUID = Depends(valid_device_id),
     db: AsyncSession = Depends(get_session),
 ):
     return await update_device_location(db, device_id, location)
@@ -78,7 +78,7 @@ async def update_device_location_endpoint(
     "/devices/{device_id}/location", response_model=LocationSchema, status_code=200
 )
 async def get_current_location_endpoint(
-    device_id: UUID = Depends(valid_device_id),
+    device_id: UUID,
     db: AsyncSession = Depends(get_session),
 ):
     return await get_device_location(db, device_id)
@@ -86,7 +86,7 @@ async def get_current_location_endpoint(
 
 @router.get("/devices/{device_id}", response_model=DeviceData)
 async def get_device_info_endpoint(
-    device_id: UUID = Depends(valid_device_id),
+    device_id: UUID,
     db: AsyncSession = Depends(get_session),
 ):
     return await device_info_endpoint(db, device_id)
