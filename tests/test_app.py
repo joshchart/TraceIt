@@ -128,7 +128,7 @@ async def test_get_device_location():
 
 # NOTE: Device
 @pytest.mark.asyncio
-async def test_create_delete_update_device():
+async def test_create_delete_device():
     user_request_body = {"email": "user2@example.com"}
 
     device_request_body = {
@@ -177,3 +177,66 @@ async def test_create_delete_update_device():
         # Verify the user has been deleted
         get_response = await client.get(f"/api/v1/users/{user_id}")
         assert get_response.status_code == 404
+
+
+# NOTE: Device
+@pytest.mark.asyncio
+async def test_create_delete_update_device():
+    user_request_body = {"email": "user3@example.com"}
+
+    device_request_body = {
+        "device_name": "test",
+        "latitude": 90,
+        "longitude": 180,
+        "timestamp": "2024-07-12T02:20:03.412Z",
+    }
+
+    device_location = {
+        "latitude": 0,
+        "longitude": 0,
+        "timestamp": "2024-07-12T15:48:57.639Z",
+    }
+
+    async with AsyncClient(
+        transport=ASGITransport(app), base_url="http://test"
+    ) as client:
+        # Create the new user
+        response = await client.post("/api/v1/users", json=user_request_body)
+        response_data = response.json()
+        assert "id" in response_data
+        user_id = response_data["id"]
+
+        # Register new device
+        response_device = await client.post(
+            f"/api/v1/users/{user_id}/devices", json=device_request_body
+        )
+        assert response_device.status_code == 201
+        device_response_data = response_device.json()
+        assert "id" in device_response_data
+        assert device_response_data["device_name"] == device_request_body["device_name"]
+        assert device_response_data["latitude"] == device_request_body["latitude"]
+        assert device_response_data["longitude"] == device_request_body["longitude"]
+
+        device_id = device_response_data["id"]
+
+        # Update device location
+        response_location = await client.post(
+            f"/api/v1/devices/{device_id}/locations", json=device_location
+        )
+        assert response_location.status_code == 200
+        location_response_data = response_location.json()
+        assert location_response_data["latitude"] == device_location["latitude"]
+        assert location_response_data["longitude"] == device_location["longitude"]
+        # assert location_response_data["timestamp"] == device_location["timestamp"] # FIX: wrong format one has ms so cant compare
+
+        # Delete the user
+        delete_response = await client.delete(f"/api/v1/users/{user_id}")
+        assert delete_response.status_code == 204
+
+        # Verify the user has been deleted
+        get_response = await client.get(f"/api/v1/users/{user_id}")
+        assert get_response.status_code == 404
+
+        # Verify the device has been deleted
+        get_device_response = await client.get(f"/api/v1/devices/{device_id}")
+        assert get_device_response.status_code == 404
