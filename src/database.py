@@ -8,19 +8,20 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 from src.config import settings
 
+# from sqlalchemy import NullPool
+
+
 dotenv.load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
-
+# DATABASE_URL = os.getenv("TEST_DATABASE_URL") # NOTE: Uncomment for testing db
 
 echo_sql = settings.echo_sql
-if isinstance(echo_sql, str):
-    echo_sql = echo_sql.lower() == "true"
-
 
 engine = create_async_engine(
     DATABASE_URL,
     echo=echo_sql,
     future=True,
+    # poolclass=NullPool,  # NOTE: for testing only (allows multiple pytests to run)
 )
 
 SessionLocal = sessionmaker(
