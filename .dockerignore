@@ -7,5 +7,13 @@ __pycache__/
 *.log
 .env
 venv/
+.git
+**/*.md
+**/__pycache__/
+.gitignore
 pytest_cache/
-
+targets.txt
+plot.html
+results.bin
+report.txt
+requirements-test.txt

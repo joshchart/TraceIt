@@ -35,6 +35,12 @@ coverage.xml
 .pytest_cache/
 cover/
 
+# Load tests 
+targets.txt
+plot.html
+results.bin
+report.txt
+
 # Environments
 .env
 .venv
