@@ -1,0 +1,6 @@
+# Why does this work without even installing the requreiments
+fastapi==0.98.0
+pydantic==1.10.9
+pytest==8.2.2
+uvicorn==0.22.0
+httpx==0.24.1
