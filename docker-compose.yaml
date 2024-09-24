@@ -1,0 +1,25 @@
+# Only used when running on docker locally
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    networks:
+      - test-network
+
+  locust:
+    build:
+      context: .
+      dockerfile: Dockerfile.locust
+    ports:
+      - "8089:8089"
+    networks:
+      - test-network
+    depends_on:
+      - app
+
+networks:
+  test-network:
+    driver: bridge
