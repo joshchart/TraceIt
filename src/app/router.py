@@ -8,18 +8,10 @@ from src.app.schemas import DeviceCreate, DeviceData
 from src.app.schemas import Location as LocationModel
 from src.app.schemas import Location as LocationSchema
 from src.app.schemas import UserCreate, UserResponse
-from src.app.service import (
-    create_user,
-    device_info_endpoint,
-    get_device_location,
-    get_specific_user,
-    get_users,
-    list_devices,
-    register_device,
-    remove_device,
-    remove_user,
-    update_device_location,
-)
+from src.app.service import (create_user, device_info_endpoint,
+                             get_device_location, get_specific_user, get_users,
+                             list_devices, register_device, remove_device,
+                             remove_user, update_device_location)
 from src.database import get_session
 
 router = APIRouter()
