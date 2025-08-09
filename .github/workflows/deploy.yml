@@ -1,0 +1,47 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'GCP environment (e.g., dev, prod)'
+        required: true
+        default: 'dev'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: 'auth'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: Configure gcloud project and region
+        run: |
+          gcloud config set project ${{ secrets.GCP_PROJECT_ID }}
+          gcloud config set run/region us-central1
+
+      - name: Build and Push image (amd64)
+        run: |
+          gcloud auth configure-docker us.gcr.io -q
+          docker buildx create --use
+          docker buildx build --platform linux/amd64 -t us.gcr.io/${{ secrets.GCP_PROJECT_ID }}/traceit:${{ github.sha }} --push .
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy traceit-${{ github.event.inputs.environment }} \
+            --image us.gcr.io/${{ secrets.GCP_PROJECT_ID }}/traceit:${{ github.sha }} \
+            --allow-unauthenticated \
+            --set-env-vars DATABASE_URL=${{ secrets.DATABASE_URL }},ECHO_SQL=True,PUBSUB_ENABLED=true,GCP_PROJECT=${{ secrets.GCP_PROJECT_ID }},PUBSUB_TOPIC_ID=device-locations

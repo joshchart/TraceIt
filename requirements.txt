@@ -25,3 +25,6 @@ SQLAlchemy==2.0.31
 starlette==0.27.0
 typing_extensions==4.12.2
 uvicorn==0.22.0
+google-cloud-pubsub==2.21.4
+apache-beam[gcp]==2.57.0
+psycopg2-binary==2.9.9

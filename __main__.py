@@ -5,10 +5,12 @@ import pulumi
 import pulumi_docker as docker
 from pulumi_gcp import cloudrun
 
-# Load and Fetch environment variables from the .env file
+# Load environment variables from .env
 dotenv.load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
-
+GCP_PROJECT = os.getenv("GCP_PROJECT")
+PUBSUB_ENABLED = os.getenv("PUBSUB_ENABLED", "true")
+PUBSUB_TOPIC_ID = os.getenv("PUBSUB_TOPIC_ID", "device-locations")
 
 # Build and push the Docker image
 image = docker.Image(
@@ -18,11 +20,11 @@ image = docker.Image(
         dockerfile="Dockerfile",
         platform="linux/amd64",
     ),
-    image_name="gcr.io/traceit-426022/main-app",
+    image_name=f"gcr.io/{GCP_PROJECT or 'traceit-426022'}/main-app",
     skip_push=False,
 )
 
-# Deploy the Cloud Run service
+# Deploy the Cloud Run service with Pub/Sub envs
 service = cloudrun.Service(
     "main-app",
     location="us-central1",
@@ -37,7 +39,20 @@ service = cloudrun.Service(
                             value=DATABASE_URL,
                         ),
                         cloudrun.ServiceTemplateSpecContainerEnvArgs(
-                            name="ECHO_SQL", value="True"
+                            name="ECHO_SQL",
+                            value="True",
+                        ),
+                        cloudrun.ServiceTemplateSpecContainerEnvArgs(
+                            name="PUBSUB_ENABLED",
+                            value=PUBSUB_ENABLED,
+                        ),
+                        cloudrun.ServiceTemplateSpecContainerEnvArgs(
+                            name="GCP_PROJECT",
+                            value=GCP_PROJECT,
+                        ),
+                        cloudrun.ServiceTemplateSpecContainerEnvArgs(
+                            name="PUBSUB_TOPIC_ID",
+                            value=PUBSUB_TOPIC_ID,
                         ),
                     ],
                 )
@@ -47,7 +62,7 @@ service = cloudrun.Service(
     traffics=[cloudrun.ServiceTrafficArgs(latest_revision=True, percent=100)],
 )
 
-# Allow unauthenticated invocations by adding this IAM binding
+# Allow unauthenticated invocations
 iam_binding = cloudrun.IamMember(
     "main-app-invoker",
     service=service.name,
@@ -56,5 +71,5 @@ iam_binding = cloudrun.IamMember(
     member="allUsers",
 )
 
-# Export the service URL (available after deployment)
+# Export the service URL
 pulumi.export("service_url", service.statuses.apply(lambda statuses: statuses[0].url))

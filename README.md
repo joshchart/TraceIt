@@ -3,6 +3,8 @@
 ## Overview
 TraceIt is a location tracking application built with FastAPI. It allows users to register devices, update their locations, and retrieve the current location of a device. The application is deployed on Google Cloud using Cloud Run, and it is unit tested with pytest and load testing with Vegeta.
 
+In addition to direct database writes, TraceIt can publish location updates to Google Pub/Sub for real-time streaming pipelines (e.g., Dataflow) to process and update the database. CI runs on GitHub Actions with a PostGIS-enabled test DB, and a manual deploy workflow can push to Cloud Run. Infrastructure can be managed with Pulumi (provided) or Terraform (optional examples included).
+
 ## Features
 - Register Users
 - Register devices
@@ -74,7 +76,7 @@ We use Docker Buildx for building and pushing the Docker images because of archi
        --platform managed \
        --region <REGION> \
        --allow-unauthenticated \
-       --set-env-vars DATABASE_URL=postgresql+asyncpg://<DB-USER>:<DB-PASSWORD>@<DB-HOST>/<DB-NAME>,ECHO_SQL=True
+      --set-env-vars DATABASE_URL=postgresql+asyncpg://<DB-USER>:<DB-PASSWORD>@<DB-HOST>/<DB-NAME>,ECHO_SQL=True,PUBSUB_ENABLED=true,GCP_PROJECT=<PROJECT-ID>,PUBSUB_TOPIC_ID=device-locations
    ```
 
 ## Running Tests
@@ -120,3 +122,5 @@ Currently when load testing using local environment and running script. In the f
 ## Design Decision and Additional Considerations:
 - Used pooled connection to help increase concurrent limit increasing QPS
 - Using Google Cloud Run since it is fully managed and autoscales container
+ - Optional real-time pipeline: API publishes to Pub/Sub; Dataflow streaming job consumes and writes to DB
+ - CI with GitHub Actions runs unit tests and builds image; deploy is human-in-the-loop via workflow dispatch

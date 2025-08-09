@@ -12,6 +12,7 @@ from src.app.models import User as UserModel
 from src.app.schemas import DeviceCreate, DeviceData
 from src.app.schemas import Location as LocationSchema
 from src.app.schemas import UserCreate, UserResponse
+from src.pubsub_utils import publish_location_update
 
 
 async def create_user(session: AsyncSession, user: UserCreate) -> UserResponse:
@@ -115,6 +116,18 @@ async def update_device_location(
 
     await db.commit()
     await db.refresh(device)
+
+    # Publish event to Pub/Sub (best effort)
+    try:
+        publish_location_update(
+            device_id=str(device_id),
+            latitude=location.latitude,
+            longitude=location.longitude,
+            timestamp=device.timestamp,
+        )
+    except Exception:
+        # Ignore publish failures
+        pass
 
     return LocationSchema(
         latitude=location.latitude,
