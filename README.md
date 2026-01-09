@@ -1,126 +1,281 @@
 # TraceIt
 
-## Overview
-TraceIt is a location tracking application built with FastAPI. It allows users to register devices, update their locations, and retrieve the current location of a device. The application is deployed on Google Cloud using Cloud Run, and it is unit tested with pytest and load testing with Vegeta.
+Real-time item location tracking application built with FastAPI and Google Cloud Platform.
 
-In addition to direct database writes, TraceIt can publish location updates to Google Pub/Sub for real-time streaming pipelines (e.g., Dataflow) to process and update the database. CI runs on GitHub Actions with a PostGIS-enabled test DB, and a manual deploy workflow can push to Cloud Run. Infrastructure can be managed with Pulumi (provided) or Terraform (optional examples included).
+## Architecture
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Devices   │────▶│  Cloud Run  │────▶│   Pub/Sub   │────▶│  Dataflow   │
+│  (Clients)  │     │   (API)     │     │   (Queue)   │     │  (Stream)   │
+└─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
+                           │                                       │
+                           ▼                                       ▼
+                    ┌─────────────┐                         ┌─────────────┐
+                    │   Cloud     │                         │ PostgreSQL  │
+                    │ Monitoring  │                         │  + PostGIS  │
+                    └─────────────┘                         └─────────────┘
+```
+
+### Components
+
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| **API** | Cloud Run + FastAPI | Serverless API with auto-scaling |
+| **Queue** | Pub/Sub | Async message buffering for reliability |
+| **Stream Processor** | Dataflow (Apache Beam) | Real-time location processing |
+| **Database** | PostgreSQL + PostGIS | Geospatial data storage |
+| **IaC** | Terraform | Infrastructure as Code |
+| **CI/CD** | GitHub Actions | Automated testing and deployment |
+| **Monitoring** | Cloud Monitoring | Uptime checks and alerting |
 
 ## Features
-- Register Users
-- Register devices
-- Update device locations
-- Retrieve current location of a device
-- List specific/all registered users/devices
 
-## Installation
-1. Clone the repository:
-   ```sh
+- Register users and devices
+- Update device locations in real-time
+- Query current device locations
+- Geospatial queries (PostGIS)
+- Highly available ingestion pipeline
+- Auto-scaling from 0 to thousands of requests
+
+## Quick Start
+
+### Prerequisites
+
+- Python 3.11+
+- Docker
+- Google Cloud SDK (`gcloud`)
+- Terraform (for infrastructure)
+- Vegeta (for load testing)
+
+### Local Development
+
+1. **Clone and setup:**
+   ```bash
    git clone https://github.com/joshchart/TraceIt.git
-   cd traceit
-   ```
-
-2. Create a virtual environment and activate it:
-   ```sh
+   cd TraceIt
    python -m venv venv
    source venv/bin/activate
-   ```
-
-3. Install the dependencies:
-   ```sh
    pip install -r requirements.txt
    ```
 
-4. Set up the environment variables (create a `.env` file):
-   ```sh
-   touch .env
+2. **Configure environment:**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your DATABASE_URL
    ```
 
-## Usage
-### Running locally
-1. Run the FastAPI application:
-   ```sh
+3. **Run locally:**
+   ```bash
    uvicorn src.main:app --reload
    ```
 
-2. Access the API documentation at `http://127.0.0.1:8000/docs`.
+4. **Access API docs:** http://127.0.0.1:8000/docs
 
-### Running locally with docker
-1. Build image:
-   ```sh
-   docker build -t traceit_image .
-   ```
-2. Run container:
-   ```sh
-   docker run --name traceit -p 8080:8080 --env-file .env traceit_image
-   ```
+### Docker
 
-## Deploying to Google Cloud Run
+```bash
+# Build
+docker build -t traceit .
 
-We use Docker Buildx for building and pushing the Docker images because of architecture mismatches. When Docker images are built on a machine with a different architecture (e.g., an Apple M1 Mac which uses ARM architecture) and then run on Google Cloud Run, which typically uses x86_64 (amd64) architecture, it can cause issues such as the "exec format error." This error occurs because the binaries compiled for ARM architecture are not compatible with x86_64 architecture.
+# Run
+docker run --name traceit -p 8080:8080 --env-file .env traceit
+```
 
-### Building and Pushing Main App Image
-1. **Create and use a new Buildx builder:**
-   ```sh
-   docker buildx create --use
-   ```
+## API Reference
 
-2. **Build and push the main app Docker image:**
-   ```sh
-   docker buildx build --platform linux/amd64 -t gcr.io/<PROJECT-ID>/<IMAGE-NAME> --push -f <DOCKERFILE-PATH> .
-   ```
+### Users
 
-3. **Deploy the main app to Cloud Run:**
-   ```sh
-   gcloud run deploy <SERVICE-NAME> \
-       --image gcr.io/<PROJECT-ID>/<IMAGE-NAME> \
-       --platform managed \
-       --region <REGION> \
-       --allow-unauthenticated \
-      --set-env-vars DATABASE_URL=postgresql+asyncpg://<DB-USER>:<DB-PASSWORD>@<DB-HOST>/<DB-NAME>,ECHO_SQL=True,PUBSUB_ENABLED=true,GCP_PROJECT=<PROJECT-ID>,PUBSUB_TOPIC_ID=device-locations
-   ```
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/v1/users` | Create a user |
+| `GET` | `/api/v1/users` | List all users |
+| `GET` | `/api/v1/users/{id}` | Get a specific user |
+| `DELETE` | `/api/v1/users/{id}` | Delete a user |
 
-## Running Tests
-### Unit testing with pytest
-Make sure to `DATABASE_URL` in `src/database.py` and uncomment `NullPool` related code. To run the tests, use the following command:
+### Devices
 
-1. Install the dependencies:
-   ```sh
-   pip install -r requirements-text.txt
-   ```
-2. Might need to activate venv again
-   ```sh
-   source venv/bin/activate
-   ```
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/v1/users/{user_id}/devices` | Register a device |
+| `GET` | `/api/v1/devices` | List all devices |
+| `GET` | `/api/v1/devices/{id}` | Get device info |
+| `GET` | `/api/v1/devices/{id}/location` | Get device location |
+| `POST` | `/api/v1/devices/{id}/locations` | Update device location |
+| `DELETE` | `/api/v1/devices/{id}` | Delete a device |
 
-3. Run unit tests
-   ```sh
-   pytest
-   ```
+### Example Requests
 
-### Load Testing with Vegeta
-Currently when load testing using local environment and running script. In the future planning on create a Google Batch Job to run the tests.
+```bash
+# Create a user
+curl -X POST https://traceit-dev-nqmvtusa7q-uc.a.run.app/api/v1/users \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com"}'
 
-1. Make sure  `.env` file has `BASE_URL` and `DATABASE_URL` setup.
+# Register a device
+curl -X POST https://traceit-dev-nqmvtusa7q-uc.a.run.app/api/v1/users/{user_id}/devices \
+  -H "Content-Type: application/json" \
+  -d '{"device_name": "Phone", "latitude": 37.7749, "longitude": -122.4194, "timestamp": "2026-01-09T12:00:00Z"}'
 
-2. To change duration or QPS update `DURATION` and `RATE` respectively in `load_test.sh`
+# Update location
+curl -X POST https://traceit-dev-nqmvtusa7q-uc.a.run.app/api/v1/devices/{device_id}/locations \
+  -H "Content-Type: application/json" \
+  -d '{"latitude": 40.7128, "longitude": -74.0060, "timestamp": "2026-01-09T12:30:00Z"}'
+```
 
-3. Make the script executable:
-   ```sh
-   chmod +x load_test.sh
-   ```
-4. Run `load_test.sh`
-   ```sh
-   ./load_test.sh
-   ```
-5. Results will print in terminal and be added to `report.txt`
+## Testing
 
-6. Acess diagram in `plot.html`:
-   ```sh
-   open plot.html
-   ```
+### Unit Tests
 
-## Design Decision and Additional Considerations:
-- Used pooled connection to help increase concurrent limit increasing QPS
-- Using Google Cloud Run since it is fully managed and autoscales container
- - Optional real-time pipeline: API publishes to Pub/Sub; Dataflow streaming job consumes and writes to DB
- - CI with GitHub Actions runs unit tests and builds image; deploy is human-in-the-loop via workflow dispatch
+```bash
+pip install -r requirements-test.txt
+pytest
+```
+
+### Load Testing
+
+Uses [Vegeta](https://github.com/tsenart/vegeta) for HTTP load testing.
+
+```bash
+# Install Vegeta (macOS)
+brew install vegeta
+
+# Run load tests (50, 100, 200 req/s)
+./load_test.sh
+
+# View results
+cat report.txt
+open plot.html
+```
+
+**Sample Results:**
+
+| Rate | Success | Mean Latency | P99 Latency |
+|------|---------|--------------|-------------|
+| 50/s | 99.9% | 570ms | 1.9s |
+| 100/s | 100% | 823ms | 2.7s |
+| 200/s | 99.9% | 5.7s | 13s |
+
+## Infrastructure
+
+### Terraform
+
+Infrastructure is managed with Terraform in the `terraform/` directory.
+
+```bash
+cd terraform
+
+# Initialize
+terraform init
+
+# Preview changes
+terraform plan
+
+# Apply changes
+terraform apply
+```
+
+**Managed Resources:**
+- Cloud Run service
+- Pub/Sub topic and subscription
+- Uptime monitoring check
+- Alert policy
+
+### Dataflow Pipeline
+
+The streaming pipeline processes location updates from Pub/Sub.
+
+```bash
+# Start the pipeline
+python dataflow/streaming_pipeline.py
+
+# Check status
+gcloud dataflow jobs list --region=us-central1
+
+# Stop the pipeline (to save costs)
+gcloud dataflow jobs cancel $(gcloud dataflow jobs list --region=us-central1 --status=active --format="value(id)") --region=us-central1
+```
+
+## CI/CD
+
+### Continuous Integration
+
+Runs on every push to any branch:
+- Builds Docker image
+- Runs pytest against PostgreSQL + PostGIS container
+- 12 tests covering users, devices, and locations
+
+### Deployment
+
+Manual deployment via GitHub Actions workflow dispatch:
+
+1. Go to **Actions** > **Deploy**
+2. Click **Run workflow**
+3. Select environment (`dev`)
+4. Click **Run workflow**
+
+Deployment uses OIDC authentication (no stored credentials).
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL async connection string |
+| `DATABASE_URL_SYNC` | PostgreSQL sync connection string (for Dataflow) |
+| `BASE_URL` | API base URL for load testing |
+| `PUBSUB_ENABLED` | Enable Pub/Sub publishing (`true`/`false`) |
+| `GCP_PROJECT` | GCP project ID |
+| `PUBSUB_TOPIC_ID` | Pub/Sub topic name |
+| `ECHO_SQL` | Log SQL queries (`True`/`False`) |
+
+## Cost Management
+
+### Pause All Services
+
+To stop incurring costs, cancel the Dataflow job:
+
+```bash
+gcloud dataflow jobs cancel $(gcloud dataflow jobs list --region=us-central1 --status=active --format="value(id)") --region=us-central1
+```
+
+Cloud Run automatically scales to zero when not in use.
+
+### Resume Services
+
+```bash
+python dataflow/streaming_pipeline.py
+```
+
+## Project Structure
+
+```
+TraceIt/
+├── src/
+│   ├── app/
+│   │   ├── models.py      # SQLAlchemy models
+│   │   ├── router.py      # API endpoints
+│   │   ├── schemas.py     # Pydantic schemas
+│   │   └── service.py     # Business logic
+│   ├── database.py        # Database connection
+│   ├── config.py          # Configuration
+│   └── main.py            # FastAPI app
+├── tests/
+│   ├── conftest.py        # Pytest fixtures
+│   └── test_app.py        # API tests
+├── dataflow/
+│   ├── streaming_pipeline.py  # Beam pipeline
+│   └── setup.py           # Worker dependencies
+├── terraform/
+│   └── main.tf            # Infrastructure
+├── .github/workflows/
+│   ├── ci.yml             # CI pipeline
+│   └── deploy.yml         # Deploy pipeline
+├── Dockerfile
+├── requirements.txt
+├── requirements-test.txt
+└── load_test.sh
+```
+
+## License
+
+MIT
