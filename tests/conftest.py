@@ -6,6 +6,7 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, AsyncEngine, async_sessionmaker
+from sqlalchemy.pool import NullPool
 
 from src.database import Base, get_session
 from src.app import models  # noqa: F401 - needed to register models
@@ -19,7 +20,11 @@ _test_session_factory: Optional[async_sessionmaker[AsyncSession]] = None
 
 @pytest.fixture(scope="session")
 def test_engine() -> AsyncEngine:
-    """Create a test engine once per session."""
+    """Create a test engine once per session.
+    
+    Uses NullPool to avoid connection pooling issues across event loops.
+    Each connection is created fresh and closed immediately after use.
+    """
     global _test_engine
     if _test_engine is None:
         database_url = os.getenv("DATABASE_URL")
@@ -29,7 +34,7 @@ def test_engine() -> AsyncEngine:
             database_url,
             echo=False,
             future=True,
-            pool_pre_ping=True,
+            poolclass=NullPool,  # Disable pooling to avoid event loop issues
         )
     return _test_engine
 
