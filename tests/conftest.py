@@ -1,4 +1,5 @@
 import asyncio
+import os
 from typing import AsyncGenerator
 
 import pytest
@@ -8,26 +9,29 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.database import Base, get_session
-from src.main import app
+from src.database import Base, get_session, reset_engine
 from src.app import models  # noqa: F401 - needed to register models
 
 
-# Use a single event loop for all tests
 @pytest.fixture(scope="session")
 def event_loop():
-    """Create an instance of the default event loop for each test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
+    """Create a single event loop for all tests."""
+    policy = asyncio.get_event_loop_policy()
+    loop = policy.new_event_loop()
     yield loop
     loop.close()
 
 
-# Create a test engine and session
 @pytest_asyncio.fixture(scope="session")
 async def test_engine():
     """Create a test database engine."""
-    import os
+    # Reset any existing engine from the app module
+    reset_engine()
+    
     database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+    
     engine = create_async_engine(
         database_url,
         echo=False,
@@ -48,44 +52,31 @@ async def test_engine():
     await engine.dispose()
 
 
-@pytest_asyncio.fixture(scope="function")
-async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
-    """Create a new database session for each test."""
-    async_session = sessionmaker(
+@pytest_asyncio.fixture(scope="session")
+async def test_session_factory(test_engine):
+    """Create a session factory bound to the test engine."""
+    return sessionmaker(
         bind=test_engine,
         class_=AsyncSession,
         expire_on_commit=False,
         autocommit=False,
         autoflush=False,
     )
-    
-    async with async_session() as session:
-        yield session
-        await session.rollback()
 
 
 @pytest_asyncio.fixture(scope="function")
-async def client(test_engine) -> AsyncGenerator[AsyncClient, None]:
+async def client(test_session_factory) -> AsyncGenerator[AsyncClient, None]:
     """Create an async test client with overridden database dependency."""
-    
-    # Create a session factory bound to test engine
-    async_session = sessionmaker(
-        bind=test_engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-        autocommit=False,
-        autoflush=False,
-    )
+    # Import app here to avoid import-time engine creation issues
+    from src.main import app
     
     async def override_get_session():
-        async with async_session() as session:
+        async with test_session_factory() as session:
             try:
                 yield session
             except Exception:
                 await session.rollback()
                 raise
-            finally:
-                await session.close()
     
     # Override the dependency
     app.dependency_overrides[get_session] = override_get_session
