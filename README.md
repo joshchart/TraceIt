@@ -148,14 +148,6 @@ cat report.txt
 open plot.html
 ```
 
-**Sample Results:**
-
-| Rate | Success | Mean Latency | P99 Latency |
-|------|---------|--------------|-------------|
-| 50/s | 99.9% | 570ms | 1.9s |
-| 100/s | 100% | 823ms | 2.7s |
-| 200/s | 99.9% | 5.7s | 13s |
-
 ## Infrastructure
 
 ### Terraform
