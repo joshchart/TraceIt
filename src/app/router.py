@@ -30,7 +30,7 @@ async def read_users(db: AsyncSession = Depends(get_session)):
     return await get_users(db)
 
 
-@router.get("/users/{user_id}", response_model=UserResponse, status_code=201)
+@router.get("/users/{user_id}", response_model=UserResponse)
 async def get_specific_user_endpoint(
     user_id: UUID, db: AsyncSession = Depends(get_session)
 ):
